@@ -3,8 +3,8 @@ library("RgoogleMaps")
 library("png")
 
 # Definition des Rasters
-rows <- 50
-cols <- 50
+rows <- 200
+cols <- 200
 
 # Manipuliert den alpha-Kanal mit eines PNG's einem Faktor
 makeTransparent <- function(image, factor) {
@@ -37,14 +37,31 @@ plot(c(0,rows), c(0,cols), xaxs = "i", yaxs = "i", type = "n", xaxt = "n", yaxt 
 
 # Prozentzahlen zum Testen generieren
 rnds <- runif(rows * cols, 0.0, 100.0)
+for(i in seq(1,rows*10)) {
+	rnds[i] <- 0.0
+}
+for(i in seq(rows*10,rows*(cols-1))) {
+	rnds[i] <- 100.0
+}
 
 ny <- readPNG("NY.png")
 img <- makeTransparent(image=ny, factor=1.0)
 rasterImage(img, 0, 0, rows, cols)
 
+old <- 0.0
+count <- 1
+similar <- 0
 for (r in 1:rows) {
 	for (c in 1:cols) {
-		img <- colorMatrix(rnds[r*c])
-		rasterImage(img, r-1, c-1, r-1+1, c-1+1)
+		if((rnds[count] == old) & (c < cols)) {
+			similar <- similar+1
+		} else {
+			img <- colorMatrix(old)
+			rasterImage(img, r-1, c-similar-1, r, c)
+
+			similar <- 0
+		}
+		old <- rnds[count]
+		count <- count + 1
 	}
 }
