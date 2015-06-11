@@ -1,5 +1,6 @@
 #!/usr/bin/Rscript
 library("RgoogleMaps")
+library("rjson")
 library("png")
 
 # Definition des Rasters
@@ -14,54 +15,50 @@ makeTransparent <- function(image, factor) {
 
 # Generiert eine farbige 1*1 matrix aus einem Prozentwert
 colorMatrix <- function(percentage) {
+	if(percentage > 100) {
+		percentage = 100
+	}
 	alpha = 0.5
 	r = (        percentage) / 100
 	g = (100 -   percentage) / 100
-	m = matrix(rgb(r,g,0,alpha), nrow=1)
+	b = (100 -   percentage) / 100
+	m = rgb(r,0.5,b,alpha)
 	return (m)
 }
 
 
 # Holen der Karte von NY mittels RgoogleMap Library falls PNG nicht existiert
-if(!file.exists("NY.png")) {
-	lat = c(40.495, 40.92)
-	lon = c(-74.255, -73.7)
-	center = c(mean(lat),mean(lon));
-	zoom <- min(MaxZoom(range(lat), range(lon)));
-	NY <- GetMap(center=center, zoom=zoom, destfile="NY.png");
+lat = c(40.495, 40.92)
+lon = c(-74.255, -73.7)
+center = c(mean(lat),mean(lon));
+zoom <- min(MaxZoom(range(lat), range(lon)));
+NY <- GetMap(center=center, zoom=11, destfile="NY.png");
+
+fileName="taxi_data.dat"
+fd=file(fileName,open="r")
+
+data <- lapply(readLines(fd), fromJSON)
+
+lonv <- vector(mode="numeric", length=0)
+latv <- vector(mode="numeric", length=0)
+countv <- vector(mode="numeric", length=0)
+colorv <- vector(mode="numeric", length=0)
+
+for (line in 1:length(data)) {
+        #print(data[[line]]$attributes$count)
+	if(data[[line]]$attributes$count <20)
+		next
+	count <- data[[line]]$attributes$count
+        longtitude <- mean(c(data[[line]]$geometry$rings[[1]][[1]][1],data[[line]]$geometry$rings[[1]][[3]][1]))
+        lattitude <- mean(c(data[[line]]$geometry$rings[[1]][[1]][2],data[[line]]$geometry$rings[[1]][[3]][2]))
+	lonv <- c(lonv, longtitude)
+	latv <- c(latv, lattitude)
+	countv <- c(countv, count)
 }
-
-# Karte von NY randlos zeichnen 
-par(mar=rep(0, 4))
-plot(c(0,rows), c(0,cols), xaxs = "i", yaxs = "i", type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-
-# Prozentzahlen zum Testen generieren
-rnds <- runif(rows * cols, 0.0, 100.0)
-for(i in seq(1,rows*10)) {
-	rnds[i] <- 0.0
+mean <- mean(countv)
+print(mean)
+for(c in 1:length(countv)) {
+	colorv <- c(colorv, colorMatrix(100 * countv[c] / mean))
 }
-for(i in seq(rows*10,rows*(cols-1))) {
-	rnds[i] <- 100.0
-}
-
-ny <- readPNG("NY.png")
-img <- makeTransparent(image=ny, factor=1.0)
-rasterImage(img, 0, 0, rows, cols)
-
-old <- 0.0
-count <- 1
-similar <- 0
-for (r in 1:rows) {
-	for (c in 1:cols) {
-		if((rnds[count] == old) & (c < cols)) {
-			similar <- similar+1
-		} else {
-			img <- colorMatrix(old)
-			rasterImage(img, r-1, c-similar-1, r, c)
-
-			similar <- 0
-		}
-		old <- rnds[count]
-		count <- count + 1
-	}
-}
+tmp <- PlotOnStaticMap(NY,cex = 0.28, pch = 15, col=colorv, lat=latv, lon=lonv, FUN = points, add=FALSE)
+close(fd)
