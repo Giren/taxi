@@ -1,28 +1,22 @@
 #!/usr/bin/Rscript
 library("RgoogleMaps")
 library("rjson")
-library("png")
 
-# Definition des Rasters
-rows <- 200
-cols <- 200
-
-# Manipuliert den alpha-Kanal mit eines PNG's einem Faktor
-makeTransparent <- function(image, factor) {
-	t <- matrix(rgb(image[,,1],image[,,2],image[,,3],image[,,4] * factor), nrow=dim(image)[1])
-	return (t)
-}
-
-# Generiert eine farbige 1*1 matrix aus einem Prozentwert
-colorMatrix <- function(percentage) {
-	if(percentage > 100) {
-		percentage = 100
+colorize <- function(percentage) {
+	#gelb
+	min = 30
+	#lila
+	max = 280
+	alpha = 0.8
+	
+	#stark frequentiert ist rot
+	if(percentage > 300) {
+		h = 1.0
+	} else {
+		percentage = min(c(100, percentage))
+		h = (min +  percentage * (max - min) /  100.0) / 360.0
 	}
-	alpha = 0.5
-	r = (        percentage) / 100
-	g = (100 -   percentage) / 100
-	b = (100 -   percentage) / 100
-	m = rgb(r,0.5,b,alpha)
+	m = hsv(h,1,1,alpha)
 	return (m)
 }
 
@@ -45,7 +39,6 @@ countv <- vector(mode="numeric", length=0)
 colorv <- vector(mode="numeric", length=0)
 
 for (line in 1:length(data)) {
-        #print(data[[line]]$attributes$count)
 	if(data[[line]]$attributes$count <20)
 		next
 	count <- data[[line]]$attributes$count
@@ -56,9 +49,8 @@ for (line in 1:length(data)) {
 	countv <- c(countv, count)
 }
 mean <- mean(countv)
-print(mean)
 for(c in 1:length(countv)) {
-	colorv <- c(colorv, colorMatrix(100 * countv[c] / mean))
+	colorv <- c(colorv, colorize(100 * countv[c] / mean))
 }
-tmp <- PlotOnStaticMap(NY,cex = 0.28, pch = 15, col=colorv, lat=latv, lon=lonv, FUN = points, add=FALSE)
+PlotOnStaticMap(NY,cex = 0.28, pch = 15, col=colorv, lat=latv, lon=lonv, FUN = points, add=FALSE)
 close(fd)
