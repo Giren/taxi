@@ -3,19 +3,13 @@ library("RgoogleMaps")
 library("rjson")
 
 colorize <- function(percentage) {
-	#gelb
-	min = 30
-	#lila
-	max = 280
-	alpha = 0.8
+	alpha = 0.6
 	
 	#stark frequentiert ist rot
-	if(percentage > 300) {
-		h = 1.0
-	} else {
-		percentage = min(c(100, percentage))
-		h = (min +  percentage * (max - min) /  100.0) / 360.0
-	}
+	percentage = min(c(100.0, percentage))
+	h = (240.0 / 360) - ((240.0 + 90) / 360) * (percentage / 100.0)
+	h = max(c(h, 0))
+
 	m = hsv(h,1,1,alpha)
 	return (m)
 }
@@ -39,7 +33,7 @@ countv <- vector(mode="numeric", length=0)
 colorv <- vector(mode="numeric", length=0)
 
 for (line in 1:length(data)) {
-	if(data[[line]]$attributes$count <20)
+	if(data[[line]]$attributes$count < 15)
 		next
 	count <- data[[line]]$attributes$count
         longtitude <- mean(c(data[[line]]$geometry$rings[[1]][[1]][1],data[[line]]$geometry$rings[[1]][[3]][1]))
@@ -48,9 +42,11 @@ for (line in 1:length(data)) {
 	latv <- c(latv, lattitude)
 	countv <- c(countv, count)
 }
-mean <- mean(countv)
+logc <- log(countv)
+max_logc <- max(logc)
+min_logc <- min(logc)
 for(c in 1:length(countv)) {
-	colorv <- c(colorv, colorize(100 * countv[c] / mean))
+	colorv <- c(colorv, colorize(100 * (logc[c] - min_logc) / max_logc))
 }
 PlotOnStaticMap(NY,cex = 0.28, pch = 15, col=colorv, lat=latv, lon=lonv, FUN = points, add=FALSE)
 close(fd)
