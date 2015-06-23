@@ -4,12 +4,9 @@ x <- 0:4
 y <- c(1, -1, 1, -1, 1)
 #y <- seq(0,100, by=.01)
 
-data <- read.table("month.csv", sep=",")
-names(data) = c("zone","year","month","count")
-dataWeekday <- read.table("dayofweek.csv", sep=",")
-names(dataWeekday) = c("zone","year","month", "weekday","count")
-dataWeekday <- arrange(dataWeekday, year, month, weekday)
-print(dataWeekday)
+data <- read.table("dayofweek.csv", sep=",")
+names(data) = c("zone","year","month", "weekday","count")
+data <- arrange(data, year, month, weekday)
 
 
 getParameter <- function(x,y) {
@@ -19,40 +16,34 @@ getParameter <- function(x,y) {
 		suppressWarnings(b <- summary(fit)$coefficients[1,1])
 	} else {
 		m <- NULL
+		return(m)
 	}
 	return(data.frame(m=m,b=b))
 }
-#plot(x,y,xlim=c(0,20))
 
-#fit <- lm(y ~ x)
-#abline(fit)
-#p <- getParameter(x,y)
-
-#points(x=5,y=(5*p["m"][1,1]+p["b"][1,1]))
-data <- arrange(data, year, month)
-
-data13 <- data$count[data["year"] < 2013]
-
-dataFeb13 <- data$count[data["year"] < 2013 && data["month"] != 2]
-
-#x <- data$month
-x <- 1:48
-y <- data$count
+d <- data$count[data["weekday"] == 1]
+x <- 1:length(d)
+y <- d
 fit <- lm(y ~ x)
 
-xFeb13 <- seq(1, length(dataFeb13))
-yFeb13 <- dataFeb13 + c(500)
-fitFeb13 <- lm(yFeb13 ~ xFeb13)
-
-
-x13 <- seq(1, length(data13))
-y13 <- data13
-fit13 <- lm(y13 ~ x13)
-
 p <- getParameter(x,y)
-plot(x,y,xlim=c(1,49))
-points(x=49,y=(49*p["m"][1,1]+p["b"][1,1]))
+#plot(x,y,xlim=c(1,length(d)+1))
+#tx <- 337
+#points(x=tx,y=(tx*p["m"][1,1]+p["b"][1,1]))
 
-abline(fit, col="red")
-abline(fit13, col="green")
-abline(fitFeb13, col="blue")
+#abline(fit, col="red")
+for(w in 1:7) {
+	filename <- paste("weekday_", w, ".png")
+	png(filename)
+	d <- data$count[data["weekday"] == w]
+	x <- 1:length(d)
+	y <- d
+	fit <- lm(y ~ x)
+	plot(x,y,xlim=c(1,length(d)+1))
+	abline(fit, col="red")
+	rm(x)
+	rm(y)
+	rm(fit)
+	rm(d)
+	dev.off()
+}
