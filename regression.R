@@ -21,12 +21,12 @@ getParameter <- function(x,y) {
 	return(data.frame(m=m,b=b))
 }
 
-d <- data$count[data["weekday"] == 1]
-x <- 1:length(d)
-y <- d
-fit <- lm(y ~ x)
+#d <- data$count[data["weekday"] == 1]
+#x <- 1:length(d)
+#y <- d
+#fit <- lm(y ~ x)
+#print(length(d))
 
-p <- getParameter(x,y)
 #plot(x,y,xlim=c(1,length(d)+1))
 #tx <- 337
 #points(x=tx,y=(tx*p["m"][1,1]+p["b"][1,1]))
@@ -34,13 +34,23 @@ p <- getParameter(x,y)
 #abline(fit, col="red")
 for(w in 1:7) {
 	filename <- paste("weekday_", w, ".png")
+
 	png(filename)
-	d <- data$count[data["weekday"] == w]
+	d <- data$count[data["weekday"] == w & data["year"] < 2013]
+	d13 <- data$count[data["weekday"] == w]
+	print(d)
 	x <- 1:length(d)
 	y <- d
 	fit <- lm(y ~ x)
-	plot(x,y,xlim=c(1,length(d)+1))
+	p <- getParameter(x,y)
+	plot(x,y,xlim=c(1,52))
+
 	abline(fit, col="red")
+	tx <- 40
+	#points(x=tx,y=(tx*p["m"][1,1]+p["b"][1,1]))
+	print(d13[tx])
+	points(x=tx,y=d13[tx], col="green", cex=c(2), pch=19)
+
 	rm(x)
 	rm(y)
 	rm(fit)
