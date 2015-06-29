@@ -1,5 +1,4 @@
 library(plyr)
-#taxi.data_prog_final.zone_id,taxi.data_prog_final.year,taxi.data_prog_final.month,taxi.data_prog_final.weekofyear,taxi.data_prog_final.dayofweek,taxi.data_prog_final.hourofday,taxi.data_prog_final.count
 
 data <- read.table("4zone_data.csv", sep=",")
 names(data) = c("zone","year","month", "weekofyear", "weekday", "hour","count")
@@ -18,30 +17,36 @@ getParameter <- function(x,y) {
 	return(data.frame(m=m,b=b))
 }
 
-#points(x=tx,y=(tx*p["m"][1,1]+p["b"][1,1]))
-
-m <- 8
-
+von <- 15
+bis <- 18
+for(month in 1:12) {
+for(zone in 1:4) {
 for(w in 1:7) {
-	filename <- paste("weekday_", w, ".png")
+	filename <- sprintf("zone-%02d-month-%02d-weekday-%d.png", zone, month, w)
 	png(filename,width=700,height=350)
 
-	d   <- data$count[data["zone"] == 3 & (data["hour"] >= 15 & data["hour"] <= 15) & data["weekday"] == w & (data["month"] >= m & data["month"] <= m) & data["year"] < 2013]
-	d13 <- data$count[data["zone"] == 3 & (data["hour"] >= 15 & data["hour"] <= 15) & data["weekday"] == w & (data["month"] >= m & data["month"] <= m)]
+	d   <- data[data["zone"] == zone & (data["hour"] >= von & data["hour"] <= bis) & data["weekday"] == w & (data["month"] >= month & data["month"] <= month) & data["year"] < 2013,]
+	d13 <- data[data["zone"] == zone & (data["hour"] >= von & data["hour"] <= bis) & data["weekday"] == w & (data["month"] >= month & data["month"] <= month),]
 
+	d <- ddply(d,.(year,weekofyear),colwise(mean))
+	d13 <- ddply(d13,.(year,weekofyear),colwise(mean))
 	print(d)
+	print(d13)
+
+	d <- d$count
+	d13 <- d13$count
 	
 	x <- 1:length(d)
 	y <- d
-	fit <- lm(y ~ log(x))
+	fit <- lm(y ~ x)
 	print(summary(fit))
 
 #	p <- getParameter(x,y)
-	plot(x,y,xlim=c(1,length(d13)))
-#
+	plot(x,y,ylim=c(1,max(d13)),xlim=c(1,length(d13)))
+
 	abline(fit, col="red")
 	tx <- length(d) + (length(d13) - length(d)) %/% 2
-#	#points(x=tx,y=(tx*p["m"][1,1]+p["b"][1,1]))
+#	points(x=tx,y=(tx*p["m"][1,1]+p["b"][1,1]))
 #	print(d13[tx])
 	
 	x13 <- seq(length(d) + 1, length(d13))
@@ -67,11 +72,5 @@ for(w in 1:7) {
 	dev.off()
 	print(d)
 }
-#print(data)
-#
-#	rm(x)
-#	rm(y)
-#	rm(fit)
-#	rm(d)
-#	dev.off()
-#}
+}
+}
