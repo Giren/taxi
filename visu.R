@@ -21,6 +21,7 @@ lat = c(40.495, 40.92)
 lon = c(-74.255, -73.7)
 center = c(mean(lat),mean(lon));
 zoom <- min(MaxZoom(range(lat), range(lon)));
+threshold < 20
 
 fileName="data_agg_1.txt"
 fd=file(fileName,open="r")
@@ -42,7 +43,7 @@ for(m in 1:12) {
 	colorv <- vector(mode="numeric", length=0)
 	#
 	for (line in 1:length(data)) {
-		if(data[[line]]$attributes$count < 20)
+		if(data[[line]]$attributes$count < threshold)
 			next
 		if(data[[line]]$attributes$year != y)
 			next
