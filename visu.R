@@ -21,7 +21,7 @@ lat = c(40.495, 40.92)
 lon = c(-74.255, -73.7)
 center = c(mean(lat),mean(lon));
 zoom <- min(MaxZoom(range(lat), range(lon)));
-threshold < 20
+threshold <- 20
 
 # Daten in den Arbeitsspeicher laden
 fileName="data_agg_1.txt"
