@@ -41,11 +41,11 @@ for(month in 1:12) {
 	png(title, width=400, height=400)
 	NY <- GetMap(center=center, zoom=11, destfile="NY.png");
 
-	# Leere Vectoren erstellen: Longtitude, Lattitude, Counts, Colors
-	lons   <- vector(mode="numeric", length=0)
-	lats   <- vector(mode="numeric", length=0)
-	counts <- vector(mode="numeric", length=0)
-	colors <- vector(mode="numeric", length=0)
+	# Leere Vektoren erstellen: Longtitude, Lattitude, Counts, Colors
+	lons   <- vektor(mode="numeric", length=0)
+	lats   <- vektor(mode="numeric", length=0)
+	counts <- vektor(mode="numeric", length=0)
+	colors <- vektor(mode="numeric", length=0)
 
 	# Daten des Jahres und Monats sammeln
 	for (line in 1:length(data)) {
@@ -67,7 +67,7 @@ for(month in 1:12) {
 	max_logc <- max(logc) - 2
 	min_logc <- min(logc)
 
-	# Farbvector erstellen der den Counts entspricht
+	# Farbvektor erstellen der den Counts entspricht
 	for(c in 1:length(counts)) {
 		colors <- c(colors, colorize(100 * (logc[c] - min_logc) / max_logc))
 	}
