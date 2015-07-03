@@ -40,14 +40,24 @@ public class PointToZoneId extends GenericUDF {
     private StringObjectInspector fileLocation;
     private Map<Integer, ArrayList<Double>> zones;
 
+    /**
+     * Diese Funktion wird beim Überprüfen der Query Syntax ausgeführt.
+     * Sie wird nicht beim Ausführen der Query ausgeführt, dafür exisitiert die  {@link #evaluate} Funktion.
+     * 
+     * @param args Typangaben der Übergabeparameter
+     * @return Typ des Rückgabewerts
+     * @throws UDFArgumentException 
+     */
     @Override
     public ObjectInspector initialize(ObjectInspector[] args) throws UDFArgumentException {
 
+        // die Funktion muss aus 3 Argumenten bestehen
         if (args.length != 3) {
             throw new UDFArgumentException("_FUNC_ must have 3 arguments!");
         }
 
         for (int i = 0; i < args.length; i++) {
+            // alle Argumente müssen einen primitiven Datentyp aufweisen (keine Liste, Map, o.ä.)
             if (args[i].getCategory() != Category.PRIMITIVE) {
                 throw new UDFArgumentTypeException(i,
                         "An argument of primitive type was expected but an argument of type " + args[i].getTypeName()
@@ -55,10 +65,11 @@ public class PointToZoneId extends GenericUDF {
 
             }
 
-            // Now that we have made sure that the argument is of primitive type, we can get the primitive category
+            // genauen Datentypen erhalten
             PrimitiveCategory primitiveCategory = ((PrimitiveObjectInspector) args[i])
                     .getPrimitiveCategory();
 
+            // die ersten beiden Parameter müssen vom Typen DOUBLE sein (longitude und latitude)
             if ((primitiveCategory != PrimitiveCategory.DOUBLE) && (i == 0 || i == 1)) {
                 throw new UDFArgumentTypeException(i,
                         "A double argument was expected but an argument of type " + args[i].getTypeName()
@@ -66,6 +77,7 @@ public class PointToZoneId extends GenericUDF {
 
             }
             
+            // der dritte Parameter ist der Pfad zur der ZoneMapping-Datei, daher vom Typ STRING
             if((primitiveCategory != PrimitiveCategory.STRING) && (i == 2)) {
                 throw new UDFArgumentTypeException(i,
                         "A string argument was expected but an argument of type " + args[i].getTypeName()
@@ -73,52 +85,83 @@ public class PointToZoneId extends GenericUDF {
             }
         }
         
+        // konvertiere die ersten beiden Datentypen, damit sie als DoubleWritable behandelt werden können
         converters = new ObjectInspectorConverters.Converter[args.length-1];
         for (int i = 0; i < args.length-1; i++) {
             converters[i] = ObjectInspectorConverters.getConverter(args[i],
                 PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
         }
         
+        // konvertiere den dritten Parameter zu einem StringObjectInspecctor
         fileLocation = (StringObjectInspector)args[2];
 
+        // der Rückgabewert ist vom Typen Integer
         return PrimitiveObjectInspectorFactory.javaIntObjectInspector;
     }
 
+    /**
+     * Diese Funktion wird für jeden Datensatz der Hive Query ausgeführt.
+     * 
+     * @param args Die Werte des aktuellen Datensatzes
+     * @return zoneid
+     * @throws HiveException 
+     */
     @Override
     public Object evaluate(DeferredObject[] args) throws HiveException {
+        // jeder Durchlauf muss 3 Parameter übergeben bekommen
         assert (args.length == 3);
         
         if (args[0].get() == null || args[1].get() == null || args[2].get() == null) {
             return null;
         }
         
+        // dritter Übergabeparameter ist der Pfad zur ZoneMapping-Datei
         String zoneMappingFile = fileLocation.getPrimitiveJavaObject(args[2].get());
         
         setZonesMap(zoneMappingFile);
 
+        // latitude und longitude aus Übergabeparameter extrahieren
         Double latitude = ((DoubleWritable) converters[0].convert(args[0].get())).get();
         Double longitude = ((DoubleWritable) converters[1].convert(args[1].get())).get();
         
+        // standardmäßig ist die zoneID -1
         Integer zoneid = -1;
         
-        // see if longitude and latitude is in one of the declared zones in zoneMappingFile and get the zoneid
+        // überprüfen, ob longitude und latitude innerhalb einer der deklariterten Zonen der ZoneMapping-Datei liegt
         for (Map.Entry<Integer, ArrayList<Double>> entry : zones.entrySet())
         {
+            // wenn der Punkt in einer Zone liegt, extrahiere zoneID aus ZoneMapping-Datei
             if(pointInArea(latitude, longitude, entry.getValue())) {
                 zoneid = entry.getKey();
                 break;
             }
         }
 
+        // gebe aktuelle zoneID zurück
         return zoneid;
     }
 
+    /**
+     * Diese Funktion gibt eine Beschreibung der Funktion zurück.
+     * 
+     * @param args 
+     * @return Beschreibung der Funktion
+     */
     @Override
     public String getDisplayString(String[] args) {
         assert (args.length == 3);
         return String.format("getzone(%s,%s,%s)", args[0], args[1], args[2]);
     }
 
+    /**
+     * Diese Funktion prüft, ob ein übergebener Punkt (gekennzeichnet durch Longitude und Latitude)
+     * in einer Zone liegt, die in der ZoneMapping-Datei deklariert wurde.
+     * 
+     * @param latitude Latitude
+     * @param longitude Longitude
+     * @param area aktueller Eintrag in ZoneMapping-Datei (eine Zone)
+     * @return Gibt true zurück, wenn der übergebene Punkt in der aktuellen Zone liegt.
+     */
     private boolean pointInArea(Double latitude, Double longitude, ArrayList<Double> area) {
         Double topLeftLat = area.get(0);
         Double topLeftLon = area.get(1);
@@ -130,21 +173,30 @@ public class PointToZoneId extends GenericUDF {
         return (topLeftLat >= latitude) && (botRightLat <= latitude) && (topLeftLon <= longitude) && (botRightLon >= longitude);
     }
 
+    /**
+     * Diese Funktion liest die ZoneMapping-Datei ein und speichert diese in einer HashMap
+     * (gekennzeichnet durch &lt;zoneID,zone&gt;.
+     * 
+     * @param zoneMappingFile Pfad zur ZoneMapping-Datei (Übergabeparameter der UDF)
+     * @throws HiveException 
+     */
     private void setZonesMap(String zoneMappingFile) throws HiveException {
+        // wenn die HashMap bereits deklariert wurde, überspringe Auslesen der Datei
         if(zones != null)
             return;
         
         zones = new HashMap<>();
         
         try {
+            // Datei aus dem HDFS einlesen
             FileSystem fs = FileSystem.get(new Configuration());
             FSDataInputStream in = fs.open(new Path(zoneMappingFile));
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
 
-            // skip first line
+            // Header überspringen
             String line = br.readLine();
             
-            // read zoneMappingFile
+            // jede Zone einlesen (eine pro Zeile)
             while ((line = br.readLine()) != null) {
                 String[] zone = line.split(",");
                 
@@ -156,12 +208,14 @@ public class PointToZoneId extends GenericUDF {
                 Double botRightLat = Double.parseDouble(zone[3]);
                 Double botRightLon = Double.parseDouble(zone[4]);
                 
+                // füge obere linke und untere rechte Ecke der Zone einer ArrayList hinzu
                 ArrayList<Double> area = new ArrayList<>();
                 area.add(topLeftLat);
                 area.add(topLeftLon);
                 area.add(botRightLat);
                 area.add(botRightLon);
                 
+                // Zone in HashMap eintragen
                 zones.put(zoneid, area);
             }
             
